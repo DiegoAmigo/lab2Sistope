@@ -1,16 +1,4 @@
-#include <pthread.h>
-
-
-struct monitor{
-    int *buffer;
-    int tamañoBuffer;
-    pthread_mutex;
-
-};
-
-
-
-
+#include "cabeceras.h" 
 
 int main(){
 
