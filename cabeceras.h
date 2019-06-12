@@ -38,3 +38,5 @@ struct Resultado{
 	int hebra;
 };
 typedef struct Resultado Resultado;
+
+extern Monitor monitor;
