@@ -12,8 +12,9 @@ struct Nodo{
 typedef struct Nodo Nodo;
 
 struct Monitor{
-    Nodo * buffer;
+    char ** buffer;
     int contadorBuffer;
+    int tamanioMaximo;
     int full;
     int empty;
     pthread_mutex_t mutex;
@@ -38,3 +39,6 @@ struct Resultado{
 	int hebra;
 };
 typedef struct Resultado Resultado;
+
+extern Monitor ** monitor;
+extern MonitorResultados * monitorResultados;
