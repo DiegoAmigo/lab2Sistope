@@ -43,7 +43,7 @@ extern Monitor ** monitor;
 
 void *trabajarVisibilidades(void *i);
 void recibirArgumentos(int argc, char *argv[]);
-void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos);
+void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos, char * nombreSalida);
 Nodo * leerArchivo(char * direccion);
 int direccionarVisibilidad(char * visibilidad, int ancho, int ndiscos);
 void salidaArchivo(char *nombreArchivo, int cantDiscos);

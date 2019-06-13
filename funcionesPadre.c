@@ -4,6 +4,8 @@
 void recibirArgumentos(int argc, char *argv[]){
 	int flags, opt;
 	Nodo *inicio=NULL;
+	printf("Hola");
+	fflush(stdout);
 	//Se le asigna memoria a path de archivos
 	char *nombreArchivo= calloc(100,sizeof(char));
 	char *nombreSalida=calloc(100,sizeof(char));
@@ -71,53 +73,32 @@ void recibirArgumentos(int argc, char *argv[]){
 	}
 	//Se llama a función leer archivo
 	inicio=leerArchivo(nombreArchivo);
-	enviarVisibilidades(inicio, anchoDiscos, cantDiscos);
+	enviarVisibilidades(inicio, anchoDiscos, cantDiscos, nombreSalida);
 	salidaArchivo(nombreSalida, cantDiscos);
-	//se hace free de los monitores
-	for(i = 0; i<cantDiscos;i++){
-		for(j = 0; j<tamanioBuffer; j++){
-			free(monitor[i]->buffer[j]);
-		}
-		free(monitor[i]->buffer);
-		free(monitor[i]->resultado);
-		free(monitor[i]);
-	}
-	free(monitor);
-	//free a la lista
-	Nodo * aux;
-	while(inicio != NULL){
-		aux = inicio;
-		inicio = inicio->siguiente;
-		free(aux->visibilidad);
-		free(aux);
-	}
 }
 
-void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos){
+void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos, char * nombreSalida){
 	Nodo * actual = inicial;
 	int numeroHebra;
-	printf("hola enviarVisibilidades\n");
-	fflush(stdout);
 	int contador = 0;
 	while(actual != NULL){
 		numeroHebra = direccionarVisibilidad(actual->visibilidad, anchoDiscos, cantDiscos);
 		//Se cierra mutex
 		pthread_mutex_lock(&monitor[numeroHebra]->mutex);
-		printf("lockeo mutex por padre %d\n",contador);
-		fflush(stdout);
+
 		//Se verifica que el buffer de la hebra a la cual será direccionada la visibilidad no esté llena
 		while(monitor[numeroHebra]->full){
-			printf("me quede pegado como padre por %d\n",numeroHebra);
         	pthread_cond_wait(&(monitor[numeroHebra]->Full), &(monitor[numeroHebra]->mutex));
         }
         //Sección crítica
         strcpy(monitor[numeroHebra]->buffer[monitor[numeroHebra]->contadorBuffer],actual->visibilidad);
         pthread_mutex_unlock(&(monitor[numeroHebra]->mutex));
         monitor[numeroHebra]->contadorBuffer++;
+        fflush(stdout);
+        printf("%d\n",contador);
         if(monitor[numeroHebra]->contadorBuffer == monitor[numeroHebra]->tamanioMaximo){
         	monitor[numeroHebra]->full = 1;
         	monitor[numeroHebra]->notFull = 0;
-        	printf("abri a %d\n",numeroHebra);
         	pthread_cond_signal(&(monitor[numeroHebra]->NotFull));
         }
         contador++;
@@ -129,13 +110,31 @@ void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos){
 	for(i = 0; i<cantDiscos; i++){
 		//Además se setea la variable finished como verdadera, para que las hebras dejen de leer visibilidades y empiecen a escribir los resultados
 		monitor[i]->finished = 1;
-		printf("abri a %d\n",i);
 		monitor[i]->full = 1;
         monitor[i]->notFull = 0;
 		pthread_cond_signal(&(monitor[i]->NotFull));
 	}
-	printf("temrine como padre\n");
-	fflush(stdout);
+	salidaArchivo(nombreSalida, cantDiscos);
+	//se hace free de los monitores
+	int j;
+	for(i = 0; i<cantDiscos;i++){
+		for(j = 0; j<monitor[i]->tamanioMaximo; j++){
+			free(monitor[i]->buffer[j]);
+		}
+		free(monitor[i]->buffer);
+		free(monitor[i]->resultado);
+		free(monitor[i]);
+	}
+	free(monitor);
+	//free a la lista
+	Nodo * aux;
+	while(inicial != NULL){
+		aux = inicial;
+		inicial = inicial->siguiente;
+		free(aux->visibilidad);
+		free(aux);
+	}
+	exit(0);
 }
 
 
@@ -174,8 +173,6 @@ Nodo * leerArchivo(char * direccion){
 		contador++;
 		aux = aux->siguiente;
 	}
-	printf("Leido %d visibilidades\n",contador);
-	fflush(stdout);
 	return inicial;
 }
 
@@ -194,7 +191,6 @@ int direccionarVisibilidad(char * visibilidad, int ancho, int ndiscos){
 	float distancia = sqrtf(powf(coordenadaU,2)+powf(coordenadaV,2));
 	//EL indice final, se calcula dividiendo la distancia calculada por el ancho de disco.
 	int indice = (int)distancia/ancho;
-	fflush(stdout);
 	//Los indices que superan el valor del último intervalo de distancias son asignados al último disco
 	if(indice>=ndiscos-1){
 		return ndiscos-1;
@@ -208,14 +204,11 @@ int direccionarVisibilidad(char * visibilidad, int ancho, int ndiscos){
 void salidaArchivo(char *nombreArchivo, int cantDiscos){
 	FILE *salida=fopen(nombreArchivo, "w");
 	int i;
-	printf("entro aqui\n");
-	fflush(stdout);
 	for(i=0;i<cantDiscos;i++){
 		//Se cierra mutex de la hebra i
 		pthread_mutex_lock(&monitor[i]->mutex);
 		//mientras los resultados no esten escritos esperar
         while(!monitor[i]->written){
-        	printf("me quede pegado al final\n");
         	pthread_cond_wait(&(monitor[i]->NotWritten), &(monitor[i]->mutex));
         }
 		fprintf(salida, "%s %i\n%s %f\n", "Disco", i+1, "Media Real: ", monitor[i]->resultado->mediaReal);
