@@ -6,6 +6,7 @@
 #include <string.h>
 
 //estructura que contiene cada dato de la visibilidad
+
 typedef struct Visibilidad{
     float U;
     float V;
@@ -15,6 +16,7 @@ typedef struct Visibilidad{
 }Visibilidad;
 
 //Struct para listar las visibilidades
+
 typedef struct Nodo{
 	struct Nodo * siguiente;
 	Visibilidad * visibilidad;

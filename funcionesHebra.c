@@ -1,6 +1,7 @@
 #include "cabeceras.h"
 
 
+
 /* Entradas: se recibe una variable i del tipo void que corresponder al numero de hebra
     Funcionamiento: al recibir el numero de hebra se bloquea el monitor correspondiente a la hebra para después cerrar el mutex, consultar si el buffer está lleno (enterSC)
                     entra a la sección critica que en este caso sería las operaciones de calculos requeridos por el enunciado (se hacen las sumas parciales), salir de la sección critica
@@ -8,6 +9,7 @@
     Salidas: ninguna debido a que su retorno es void en sí.
 
  */
+
 
 void * trabajarVisibilidades(void *i){
     int numeroHebra = *(int*)i;

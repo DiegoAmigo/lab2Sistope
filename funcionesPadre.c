@@ -151,6 +151,7 @@ void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos, char *
 
  */
 
+//Función que lee el archivo con los datos del espacio de Fourier
 Nodo * leerArchivo(char * direccion){
 	Nodo * inicial= NULL;
 	Nodo * aux;	
@@ -201,6 +202,7 @@ Nodo * leerArchivo(char * direccion){
 	Salida: retorna el indice del monitor correspondiente a dicha hebra que se selecciona (numero del monitor es el mismo al numero de la hebra)
 
  */
+//Función para calcular la hebra al cual será envíado una visibilidad, se retorna el indice del monitor correspondiente a dicho hijo
 int direccionarVisibilidad(Visibilidad * visibilidad, int ancho, int ndiscos){
 	//Se aplica la formula de la distancia, raíz de la suma de potencias de ambas coordenadas
 	float distancia = sqrtf(powf(visibilidad->U,2)+powf(visibilidad->V,2));
@@ -220,6 +222,7 @@ int direccionarVisibilidad(Visibilidad * visibilidad, int ancho, int ndiscos){
 	Salidas: ninguna en especifico debido al tipo void.
 
  */
+
 
 
 //Función para escribir el archivo de salida.
