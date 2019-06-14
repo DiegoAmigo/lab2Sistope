@@ -70,6 +70,24 @@ void recibirArgumentos(int argc, char *argv[]){
 	inicio=leerArchivo(nombreArchivo);
 	enviarVisibilidades(inicio, anchoDiscos, cantDiscos, nombreSalida);
 	salidaArchivo(nombreSalida, cantDiscos);
+	//se hace free de los monitores
+	for(i = 0; i<cantDiscos;i++){
+		for(j = 0; j<monitor[i]->tamanioMaximo; j++){
+			free(monitor[i]->buffer[j]);
+		}
+		free(monitor[i]->buffer);
+		free(monitor[i]->resultado);
+		free(monitor[i]);
+	}
+	free(monitor);
+	//free a la lista
+	Nodo * aux;
+	while(inicio != NULL){
+		aux = inicio;
+		inicio = inicio->siguiente;
+		free(aux->visibilidad);
+		free(aux);
+	}
 }
 
 void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos, char * nombreSalida){
@@ -107,27 +125,6 @@ void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos, char *
         monitor[i]->notFull = 0;
 		pthread_cond_signal(&(monitor[i]->NotFull));
 	}
-	salidaArchivo(nombreSalida, cantDiscos);
-	//se hace free de los monitores
-	int j;
-	for(i = 0; i<cantDiscos;i++){
-		for(j = 0; j<monitor[i]->tamanioMaximo; j++){
-			free(monitor[i]->buffer[j]);
-		}
-		free(monitor[i]->buffer);
-		free(monitor[i]->resultado);
-		free(monitor[i]);
-	}
-	free(monitor);
-	//free a la lista
-	Nodo * aux;
-	while(inicial != NULL){
-		aux = inicial;
-		inicial = inicial->siguiente;
-		free(aux->visibilidad);
-		free(aux);
-	}
-	exit(0);
 }
 
 
