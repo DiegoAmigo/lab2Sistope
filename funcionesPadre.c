@@ -1,10 +1,10 @@
 #include "cabeceras.h"
 
+pthread_t * hebras;
 //Función por la cual se inicia el proceso de ejecución y principalmente se leen los argumentos de entrada.
 void recibirArgumentos(int argc, char *argv[]){
 	int flags, opt;
 	Nodo *inicio=NULL;
-	printf("Hola");
 	fflush(stdout);
 	//Se le asigna memoria a path de archivos
 	char *nombreArchivo= calloc(100,sizeof(char));
@@ -49,25 +49,20 @@ void recibirArgumentos(int argc, char *argv[]){
 		monitor[i] = (Monitor *)malloc(sizeof(Monitor));
 		//Se inicializan los atributos del monitor
 		monitor[i]->contadorBuffer = 0;
-		monitor[i]->buffer = (char **)calloc(tamanioBuffer,sizeof(char *));
-		for(j = 0; j<tamanioBuffer; j++){
-			monitor[i]->buffer[j] = (char *)calloc(256,sizeof(char));
-		}
+		monitor[i]->buffer = (Visibilidad **)calloc(tamanioBuffer,sizeof(Visibilidad *));
 		monitor[i]->tamanioMaximo = tamanioBuffer;
 		monitor[i]->full = 0;
 		monitor[i]->notFull = 1;
 		monitor[i]->finished = 0;
-		monitor[i]->written = 0;
 		monitor[i]->flag = flags;
 		monitor[i]->numeroHebra = i;
 		monitor[i]->resultado = (Resultado *)malloc(sizeof(Resultado));
 		pthread_mutex_init(&(monitor[i]->mutex),NULL);
 		pthread_cond_init(&(monitor[i]->NotFull),NULL);
 		pthread_cond_init(&(monitor[i]->Full),NULL);
-		pthread_cond_init(&(monitor[i]->NotWritten),NULL);
 	}
 	//Se inicializa el monitor para controlar la escritura de resultados
-	pthread_t * hebras = (pthread_t *)calloc(cantDiscos, sizeof(pthread_t));
+	hebras = (pthread_t *)calloc(cantDiscos, sizeof(pthread_t));
 	for(i = 0; i<cantDiscos;i++){
 		pthread_create(&hebras[i],NULL,trabajarVisibilidades,(void *)&monitor[i]->numeroHebra);
 	}
@@ -91,16 +86,14 @@ void enviarVisibilidades(Nodo * inicial, int anchoDiscos, int cantDiscos, char *
         	pthread_cond_wait(&(monitor[numeroHebra]->Full), &(monitor[numeroHebra]->mutex));
         }
         //Sección crítica
-        strcpy(monitor[numeroHebra]->buffer[monitor[numeroHebra]->contadorBuffer],actual->visibilidad);
-        pthread_mutex_unlock(&(monitor[numeroHebra]->mutex));
+        monitor[numeroHebra]->buffer[monitor[numeroHebra]->contadorBuffer] = actual->visibilidad;
         monitor[numeroHebra]->contadorBuffer++;
-        fflush(stdout);
-        printf("%d\n",contador);
         if(monitor[numeroHebra]->contadorBuffer == monitor[numeroHebra]->tamanioMaximo){
         	monitor[numeroHebra]->full = 1;
         	monitor[numeroHebra]->notFull = 0;
         	pthread_cond_signal(&(monitor[numeroHebra]->NotFull));
         }
+        pthread_mutex_unlock(&(monitor[numeroHebra]->mutex));
         contador++;
         actual = actual->siguiente;
 	}
@@ -146,17 +139,25 @@ Nodo * leerArchivo(char * direccion){
 	char buffer[255];
 	fp = fopen(direccion, "r");
 	char * pend;
+	char * pieza;
+	char * pieza2;
 	//Se lee linea a linea
 	while(fgets(buffer, 255, (FILE*) fp)) {
 		//se asigna memoria al nuevo nodo
 		aux = (Nodo *)malloc(sizeof(Nodo));
 		aux->siguiente = NULL;
 		//se asigna memoria para la linea (visibilidad) que contendrá el nodo
-		aux->visibilidad = (char *)calloc(256,sizeof(char));
-		if(buffer[strlen(buffer)-1]=='\n'){
-			buffer[strlen(buffer)-1] = '\0';
-		}
-		strcpy(aux->visibilidad, buffer);
+		aux->visibilidad = (Visibilidad *)malloc(sizeof(Visibilidad));
+		pieza = strtok(buffer, ",");
+		aux->visibilidad->U = strtof(pieza, &pieza2);
+        pieza = strtok(NULL, ",");
+        aux->visibilidad->V = strtof(pieza, NULL);
+        pieza = strtok(NULL, ",");
+   	    aux->visibilidad->real = strtof(pieza, NULL);
+   	    pieza = strtok(NULL, ",");
+   	    aux->visibilidad->imaginario = strtof(pieza, NULL);
+        pieza = strtok(NULL, ",");
+        aux->visibilidad->ruido = strtof(pieza,NULL);
 		//el nuevo nodo se agrega a la lista (se agrega como si fuera una pila para optimizar)
     	if(inicial == NULL){
     		inicial = aux;
@@ -177,18 +178,9 @@ Nodo * leerArchivo(char * direccion){
 }
 
 //Función para calcular la hebra al cual será envíado una visibilidad, se retorna el indice del monitor correspondiente a dicho hijo
-int direccionarVisibilidad(char * visibilidad, int ancho, int ndiscos){
-	char * token;
-	strcpy(token,visibilidad);
-	char * pend;
-	token = strtok(token,",");
-	//Se obtiene la coordenada U de la visibilidad
-	float coordenadaU = strtof(token,&pend);
-	token = strtok(NULL,",");
-	//Se obtiene la coordenada V de la visibilidad
-	float coordenadaV = strtof(token,NULL);
+int direccionarVisibilidad(Visibilidad * visibilidad, int ancho, int ndiscos){
 	//Se aplica la formula de la distancia, raíz de la suma de potencias de ambas coordenadas
-	float distancia = sqrtf(powf(coordenadaU,2)+powf(coordenadaV,2));
+	float distancia = sqrtf(powf(visibilidad->U,2)+powf(visibilidad->V,2));
 	//EL indice final, se calcula dividiendo la distancia calculada por el ancho de disco.
 	int indice = (int)distancia/ancho;
 	//Los indices que superan el valor del último intervalo de distancias son asignados al último disco
@@ -205,12 +197,8 @@ void salidaArchivo(char *nombreArchivo, int cantDiscos){
 	FILE *salida=fopen(nombreArchivo, "w");
 	int i;
 	for(i=0;i<cantDiscos;i++){
-		//Se cierra mutex de la hebra i
-		pthread_mutex_lock(&monitor[i]->mutex);
-		//mientras los resultados no esten escritos esperar
-        while(!monitor[i]->written){
-        	pthread_cond_wait(&(monitor[i]->NotWritten), &(monitor[i]->mutex));
-        }
+		//Se esperan los resultados 
+		pthread_join(hebras[i], NULL);
 		fprintf(salida, "%s %i\n%s %f\n", "Disco", i+1, "Media Real: ", monitor[i]->resultado->mediaReal);
 		fprintf(salida, "%s %f\n", "Media Imaginaria: ", monitor[i]->resultado->mediaImaginaria);
 		fprintf(salida, "%s %f\n", "Potencia: ", monitor[i]->resultado->potencia);
